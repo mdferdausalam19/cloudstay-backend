@@ -23,7 +23,7 @@ const cookieOptions = {
 };
 
 // MongoDB dependencies and client initialization
-const { MongoClient, ServerApiVersion } = require("mongodb");
+const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.kmxsq.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
 
 // Create a new MongoDB client with configuration
@@ -78,9 +78,23 @@ async function run() {
       }
     });
 
-    // Route to fetch all rooms
+    // Route to fetch all rooms, optionally filtered by category
     app.get("/rooms", async (req, res) => {
-      const result = await roomsCollection.find().toArray();
+      const category = req.query?.category;
+      console.log(category);
+      let query = {};
+      if (category && category !== "null") {
+        query = { category };
+      }
+      const result = await roomsCollection.find(query).toArray();
+      res.send(result);
+    });
+
+    // Route to fetch a specific room by ID
+    app.get("/rooms/:id", async (req, res) => {
+      const id = req.params?.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await roomsCollection.findOne(query);
       res.send(result);
     });
 
