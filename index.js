@@ -3,10 +3,24 @@ const cors = require("cors");
 require("dotenv").config();
 const app = express();
 const port = process.env.PORT || 5000;
+const jwt = require("jsonwebtoken");
+const cookieParser = require("cookie-parser");
 
 // Middleware setup for CORS and JSON parsing
-app.use(cors());
+const corsOptions = {
+  origin: ["http://localhost:5173", "https://cloudstay-frontend.vercel.app"],
+  credentials: true,
+  optionsSuccessStatus: 200,
+};
+app.use(cors(corsOptions));
 app.use(express.json());
+app.use(cookieParser());
+
+const cookieOptions = {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === "production",
+  sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
+};
 
 // MongoDB dependencies and client initialization
 const { MongoClient, ServerApiVersion } = require("mongodb");
@@ -21,8 +35,55 @@ const client = new MongoClient(uri, {
   },
 });
 
+// Middleware to verify JWT token and extract user data
+const verifyToken = (req, res, next) => {
+  const token = req.cookies?.token;
+  if (!token) {
+    return res.status(401).send({ message: "unauthorized access" });
+  }
+  jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
+    if (err) {
+      return res.status(401).send({ message: "unauthorized access" });
+    }
+    req.user = decoded;
+    next();
+  });
+};
+
 async function run() {
   try {
+    const database = client.db("cloudstay");
+    const roomsCollection = database.collection("rooms");
+
+    // Route to generate JWT token and set it as a cookie
+    app.post("/jwt", (req, res) => {
+      const email = req.body;
+      const token = jwt.sign(email, process.env.ACCESS_TOKEN_SECRET, {
+        expiresIn: "7d",
+      });
+      res.cookie("token", token, cookieOptions).send({ success: true });
+    });
+
+    // Route to clear JWT token cookie for sign-out
+    app.get("/sign-out", (req, res) => {
+      try {
+        res
+          .clearCookie("token", {
+            ...cookieOptions,
+            maxAge: 0,
+          })
+          .send({ success: true });
+      } catch (err) {
+        res.status(500).send(err);
+      }
+    });
+
+    // Route to fetch all rooms
+    app.get("/rooms", async (req, res) => {
+      const result = await roomsCollection.find().toArray();
+      res.send(result);
+    });
+
     console.log("Connected to MongoDB successfully!");
   } catch (err) {
     // Log any errors during connection or runtime
