@@ -81,12 +81,18 @@ async function run() {
     // Route to fetch all rooms, optionally filtered by category
     app.get("/rooms", async (req, res) => {
       const category = req.query?.category;
-      console.log(category);
       let query = {};
       if (category && category !== "null") {
         query = { category };
       }
       const result = await roomsCollection.find(query).toArray();
+      res.send(result);
+    });
+
+    // Route add a room
+    app.post("/rooms", async (req, res) => {
+      const roomData = req.body;
+      const result = await roomsCollection.insertOne(roomData);
       res.send(result);
     });
 
