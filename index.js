@@ -54,6 +54,7 @@ async function run() {
   try {
     const database = client.db("cloudstay");
     const roomsCollection = database.collection("rooms");
+    const usersCollection = database.collection("users");
 
     // Route to generate JWT token and set it as a cookie
     app.post("/jwt", (req, res) => {
@@ -76,6 +77,41 @@ async function run() {
       } catch (err) {
         res.status(500).send(err);
       }
+    });
+
+    // Route to save a user data
+    app.put("/users", async (req, res) => {
+      const user = req.body;
+      const query = { email: user?.email };
+      const isExist = await usersCollection.findOne(query);
+      if (isExist) {
+        if (user.status === "Requested") {
+          // if existing user try to change their role
+          const result = await usersCollection.updateOne(query, {
+            $set: { status: user?.status },
+          });
+          return res.send(result);
+        } else {
+          // if existing user sign in again
+          return res.send(isExist);
+        }
+      }
+      //save user for the first time
+      const options = { upsert: true };
+      const updateDoc = {
+        $set: {
+          ...user,
+          timestamp: Date.now(),
+        },
+      };
+      const result = await usersCollection.updateOne(query, updateDoc, options);
+      res.send(result);
+    });
+
+    // Route to fetch all users
+    app.get("/users", async (req, res) => {
+      const result = await usersCollection.find().toArray();
+      res.send(result);
     });
 
     // Route to fetch all rooms, optionally filtered by category
