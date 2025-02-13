@@ -79,6 +79,20 @@ async function run() {
       }
     });
 
+    // Route to fetch all users
+    app.get("/users", async (req, res) => {
+      const result = await usersCollection.find().toArray();
+      res.send(result);
+    });
+
+    // Route to get user data by email
+    app.get("/users/:email", async (req, res) => {
+      const email = req.params.email;
+      const query = { email };
+      const result = await usersCollection.findOne(query);
+      res.send(result);
+    });
+
     // Route to save a user data
     app.put("/users", async (req, res) => {
       const user = req.body;
@@ -108,9 +122,18 @@ async function run() {
       res.send(result);
     });
 
-    // Route to fetch all users
-    app.get("/users", async (req, res) => {
-      const result = await usersCollection.find().toArray();
+    // Route to update user data by email
+    app.patch("/users/update/:email", async (req, res) => {
+      const email = req.params.email;
+      const user = req.body;
+      const filter = { email };
+      const updateDoc = {
+        $set: {
+          ...user,
+          timestamp: Date.now(),
+        },
+      };
+      const result = await usersCollection.updateOne(filter, updateDoc);
       res.send(result);
     });
 
