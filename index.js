@@ -56,6 +56,28 @@ async function run() {
     const roomsCollection = database.collection("rooms");
     const usersCollection = database.collection("users");
 
+    // Middleware to verify admin
+    const verifyAdmin = async (req, res, next) => {
+      const email = req?.user?.email;
+      const query = { email };
+      const result = await usersCollection.findOne(query);
+      if (!result || result?.role !== "admin") {
+        return res.status(401).send({ message: "unauthorized access" });
+      }
+      next();
+    };
+
+    // Middleware to verify admin
+    const verifyHost = async (req, res, next) => {
+      const email = req?.user?.email;
+      const query = { email };
+      const result = await usersCollection.findOne(query);
+      if (!result || result?.role !== "host") {
+        return res.status(401).send({ message: "unauthorized access" });
+      }
+      next();
+    };
+
     // Route to generate JWT token and set it as a cookie
     app.post("/jwt", (req, res) => {
       const email = req.body;
@@ -80,7 +102,7 @@ async function run() {
     });
 
     // Route to fetch all users
-    app.get("/users", async (req, res) => {
+    app.get("/users", verifyToken, verifyAdmin, async (req, res) => {
       const result = await usersCollection.find().toArray();
       res.send(result);
     });
@@ -148,8 +170,8 @@ async function run() {
       res.send(result);
     });
 
-    // Route add a room
-    app.post("/rooms", async (req, res) => {
+    // Route to add a room
+    app.post("/rooms", verifyToken, verifyHost, async (req, res) => {
       const roomData = req.body;
       const result = await roomsCollection.insertOne(roomData);
       res.send(result);
@@ -164,15 +186,20 @@ async function run() {
     });
 
     // Route to fetch all rooms for a specific host based on their email
-    app.get("/my-listings/:email", async (req, res) => {
-      const email = req.params?.email;
-      const query = { "host.email": email };
-      const result = await roomsCollection.find(query).toArray();
-      res.send(result);
-    });
+    app.get(
+      "/my-listings/:email",
+      verifyToken,
+      verifyHost,
+      async (req, res) => {
+        const email = req.params?.email;
+        const query = { "host.email": email };
+        const result = await roomsCollection.find(query).toArray();
+        res.send(result);
+      }
+    );
 
     // Route to delete a specific room by ID
-    app.delete("/rooms/:id", async (req, res) => {
+    app.delete("/rooms/:id", verifyToken, verifyHost, async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const result = await roomsCollection.deleteOne(query);
