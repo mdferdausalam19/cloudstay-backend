@@ -248,6 +248,35 @@ async function run() {
       res.send(result);
     });
 
+    // Route to fetch all bookings for a specific guest based on their email
+    app.get("/my-bookings/:email", verifyToken, async (req, res) => {
+      const email = req.params?.email;
+      const query = { "guest.email": email };
+      const result = await bookingsCollection.find(query).toArray();
+      res.send(result);
+    });
+
+    // Route to fetch all bookings for a specific host based on their email
+    app.get(
+      "/manage-bookings/:email",
+      verifyToken,
+      verifyHost,
+      async (req, res) => {
+        const email = req.params?.email;
+        const query = { "host.email": email };
+        const result = await bookingsCollection.find(query).toArray();
+        res.send(result);
+      }
+    );
+
+    // Route to delete a specific booking by ID
+    app.delete("/bookings/:id", verifyToken, async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await bookingsCollection.deleteOne(query);
+      res.send(result);
+    });
+
     console.log("Connected to MongoDB successfully!");
   } catch (err) {
     // Log any errors during connection or runtime
