@@ -2,9 +2,10 @@ const express = require("express");
 const cors = require("cors");
 require("dotenv").config();
 const app = express();
-const port = process.env.PORT || 5000;
 const jwt = require("jsonwebtoken");
 const cookieParser = require("cookie-parser");
+const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
+const port = process.env.PORT || 5000;
 
 // Middleware setup for CORS and JSON parsing
 const corsOptions = {
@@ -55,6 +56,7 @@ async function run() {
     const database = client.db("cloudstay");
     const roomsCollection = database.collection("rooms");
     const usersCollection = database.collection("users");
+    const bookingsCollection = database.collection("bookings");
 
     // Middleware to verify admin
     const verifyAdmin = async (req, res, next) => {
@@ -99,6 +101,27 @@ async function run() {
       } catch (err) {
         res.status(500).send(err);
       }
+    });
+
+    // Route to create payment intent
+    app.post("/create-payment-intent", verifyToken, async (req, res) => {
+      const price = req.body.price;
+      const priceInCent = parseFloat(price) * 100;
+      if (!price || priceInCent < 1) {
+        return;
+      }
+      // generate client_secret
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: priceInCent,
+        currency: "usd",
+        automatic_payment_methods: {
+          enabled: true,
+        },
+      });
+      // send client secret as response
+      res.send({
+        clientSecret: paymentIntent.client_secret,
+      });
     });
 
     // Route to fetch all users
@@ -203,6 +226,25 @@ async function run() {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const result = await roomsCollection.deleteOne(query);
+      res.send(result);
+    });
+
+    // Route to add a booking data
+    app.post("/bookings", verifyToken, async (req, res) => {
+      const bookingData = req.body;
+      const result = await bookingsCollection.insertOne(bookingData);
+      res.send(result);
+    });
+
+    // Route to update the status of the room
+    app.patch("/rooms/status/:id", async (req, res) => {
+      const id = req.params?.id;
+      const status = req.body?.status;
+      const filter = { _id: new ObjectId(id) };
+      const updateDoc = {
+        $set: { booked: status },
+      };
+      const result = await roomsCollection.updateOne(filter, updateDoc);
       res.send(result);
     });
 
