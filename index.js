@@ -248,6 +248,20 @@ async function run() {
       res.send(result);
     });
 
+    // Route to update a room data
+    app.put("/rooms/update/:id", verifyToken, verifyHost, async (req, res) => {
+      const id = req.params?.id;
+      const roomData = req.body;
+      const filter = { _id: new ObjectId(id) };
+      const updateDoc = {
+        $set: {
+          ...roomData,
+        },
+      };
+      const result = await roomsCollection.updateOne(filter, updateDoc);
+      res.send(result);
+    });
+
     // Route to fetch all bookings for a specific guest based on their email
     app.get("/my-bookings/:email", verifyToken, async (req, res) => {
       const email = req.params?.email;
