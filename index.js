@@ -5,6 +5,7 @@ const app = express();
 const jwt = require("jsonwebtoken");
 const cookieParser = require("cookie-parser");
 const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
+const nodemailer = require("nodemailer");
 const port = process.env.PORT || 5000;
 
 // Middleware setup for CORS and JSON parsing
@@ -35,6 +36,36 @@ const client = new MongoClient(uri, {
     deprecationErrors: true,
   },
 });
+
+// Sends an email using Nodemailer with Gmail
+// const sendEmail = async (emailAddress, emailData) => {
+//   try {
+//     const transporter = nodemailer.createTransport({
+//       service: "gmail",
+//       host: "smtp.gmail.com",
+//       port: 587,
+//       secure: false,
+//       auth: {
+//         user: process.env.TRANSPORTER_EMAIL,
+//         pass: process.env.TRANSPORTER_PASS,
+//       },
+//     });
+
+//     const mailBody = {
+//       from: `"CloudStay" <${process.env.TRANSPORTER_EMAIL}>`,
+//       to: emailAddress,
+//       subject: emailData?.subject,
+//       html: emailData?.message,
+//     };
+
+//     const info = await transporter.sendMail(mailBody);
+//     console.log("Email Sent: ", info.response);
+//     return { success: true, message: "Email sent successfully!" };
+//   } catch (error) {
+//     console.error("Email Sending Failed:", error);
+//     return { success: false, message: "Failed to send email" };
+//   }
+// };
 
 // Middleware to verify JWT token and extract user data
 const verifyToken = (req, res, next) => {
@@ -164,6 +195,23 @@ async function run() {
         },
       };
       const result = await usersCollection.updateOne(query, updateDoc, options);
+
+      // send an email to the new user
+
+      // sendEmail(user?.email, {
+      //   subject: "Welcome to CloudStay!",
+      //   message: `
+      //   Hi,
+
+      //   Welcome to CloudStay! 🎉 We’re thrilled to have you on board.
+
+      //   Whether you're searching for the perfect stay or looking to host travelers, CloudStay is here to make your experience seamless and enjoyable.
+
+      //   Start exploring today and find your perfect destination! 🌍✨
+
+      //   Best,
+      //   CloudStay Team`,
+      // });
       res.send(result);
     });
 
@@ -233,6 +281,42 @@ async function run() {
     app.post("/bookings", verifyToken, async (req, res) => {
       const bookingData = req.body;
       const result = await bookingsCollection.insertOne(bookingData);
+
+      // send an email to the guest
+
+      // sendEmail(bookingData?.guest?.email, {
+      //   subject: "Booking Successful!",
+      //   message: `
+      //   Hi ${bookingData?.guest?.name},
+
+      //   Your booking at CloudStay is confirmed! 🎉 We’re excited to host you.
+
+      //   Booking Details:
+      //   Transaction ID: ${bookingData?.transactionId}
+
+      //   If you have any questions or special requests, feel free to reach out. Safe travels!
+
+      //   Best,
+      //   CloudStay Team`,
+      // });
+
+      // send an email to the host
+
+      // sendEmail(bookingData?.host?.email, {
+      //   subject: "Your room got booked!",
+      //   message: `
+      //   Hi ${bookingData?.host?.name},
+
+      //   Great news! 🎉 Your room has been successfully booked on CloudStay.
+
+      //   Guest Details:
+      //   Guest Name: ${bookingData?.guest?.name}
+
+      //   Please ensure the room is ready and communicate any necessary details with your guest. Wishing you a smooth hosting experience!
+
+      //   Best,
+      //   CloudStay Team`,
+      // });
       res.send(result);
     });
 
