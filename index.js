@@ -6,6 +6,10 @@ const jwt = require("jsonwebtoken");
 const cookieParser = require("cookie-parser");
 const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 const nodemailer = require("nodemailer");
+const multer = require("multer");
+const axios = require("axios");
+const FormData = require("form-data");
+const upload = multer({ storage: multer.memoryStorage() });
 const port = process.env.PORT || 5000;
 
 // Middleware setup for CORS and JSON parsing
@@ -131,6 +135,29 @@ async function run() {
           .send({ success: true });
       } catch (err) {
         res.status(500).send(err);
+      }
+    });
+
+    // Route to upload image
+    app.post("/upload-image", upload.single("image"), async (req, res) => {
+      try {
+        if (!req.file) {
+          return res.status(400).send({ error: "No image uploaded" });
+        }
+
+        const formData = new FormData();
+        formData.append("image", req.file.buffer.toString("base64"));
+
+        const { data } = await axios.post(
+          `https://api.imgbb.com/1/upload?key=${process.env.IMGBB_API_KEY}`,
+          formData,
+          { headers: formData.getHeaders() }
+        );
+
+        res.send({ display_url: data.data.display_url });
+      } catch (error) {
+        console.error("Image upload failed:", error);
+        res.status(500).send({ error: "Image upload failed" });
       }
     });
 
